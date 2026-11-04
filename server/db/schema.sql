@@ -1,0 +1,8 @@
+-- Run once against your database: psql "$DATABASE_URL" -f server/db/schema.sql
+CREATE TABLE IF NOT EXISTS todos (
+  id          SERIAL PRIMARY KEY,
+  title       TEXT NOT NULL,
+  completed   BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
