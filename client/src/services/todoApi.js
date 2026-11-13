@@ -12,7 +12,12 @@ async function request(endpoint = '', options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || `Request failed (${response.status})`);
+    // Server errors look like { success: false, error: { message, details } }
+    const message =
+      data.error?.details?.[0]?.message ||
+      data.error?.message ||
+      `Request failed (${response.status})`;
+    throw new Error(message);
   }
 
   return data;

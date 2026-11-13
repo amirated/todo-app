@@ -5,6 +5,7 @@ const cors = require('cors');
 
 const pool = require('./config/db');
 const todoRoutes = require('./routes/todoRoutes');
+const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -21,6 +22,10 @@ app.get('/health', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Database connection failed' });
   }
 });
+
+// Must be registered after all routes
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
