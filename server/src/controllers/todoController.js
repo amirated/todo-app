@@ -8,7 +8,7 @@ const AppError = require('../utils/AppError');
 // GET /api/todos
 async function getTodos(req, res) {
   const result = await pool.query(
-    'SELECT * FROM todos ORDER BY created_at DESC'
+    'SELECT * FROM todos ORDER BY position ASC, created_at DESC'
   );
 
   res.json(result.rows);
@@ -19,7 +19,10 @@ async function createTodo(req, res) {
   const { title } = req.validated.body;
 
   const result = await pool.query(
-    'INSERT INTO todos (title) VALUES ($1) RETURNING *',
+    // New todos go to the top: one position above the current first item.
+    `INSERT INTO todos (title, position)
+     VALUES ($1, (SELECT COALESCE(MIN(position), 0) - 1 FROM todos))
+     RETURNING *`,
     [title]
   );
 
@@ -76,10 +79,58 @@ async function clearCompleted(req, res) {
   });
 }
 
+// PUT /api/todos/reorder
+async function reorderTodos(req, res) {
+  const { orderedIds } = req.validated.body;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Lock every row so concurrent reorders/creates/deletes can't interleave.
+    const { rows } = await client.query('SELECT id FROM todos FOR UPDATE');
+
+    // The client must send exactly the current set of todos. A mismatch means
+    // its list is stale (e.g. a todo was added or deleted in another tab).
+    const requested = new Set(orderedIds);
+    const matches =
+      rows.length === orderedIds.length && rows.every((row) => requested.has(row.id));
+
+    if (!matches) {
+      throw new AppError(
+        409,
+        'The todo list has changed since it was loaded. Refresh and try again.'
+      );
+    }
+
+    // One statement: each ID's index in the array becomes its position.
+    await client.query(
+      `UPDATE todos AS t
+       SET position = o.ord - 1
+       FROM unnest($1::uuid[]) WITH ORDINALITY AS o(id, ord)
+       WHERE t.id = o.id`,
+      [orderedIds]
+    );
+
+    const result = await client.query(
+      'SELECT * FROM todos ORDER BY position ASC, created_at DESC'
+    );
+
+    await client.query('COMMIT');
+    res.json(result.rows);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error; // forwarded to the centralized error handler
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getTodos,
   createTodo,
   updateTodo,
   deleteTodo,
   clearCompleted,
+  reorderTodos,
 };

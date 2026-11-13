@@ -1,4 +1,4 @@
--- Run once against your database: psql "$DATABASE_URL" -f server/db/schema.sql
+-- Initial schema. Applied by `npm run migrate`.
 -- gen_random_uuid() is built into PostgreSQL 13+.
 CREATE TABLE IF NOT EXISTS todos (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
