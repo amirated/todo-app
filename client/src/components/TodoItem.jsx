@@ -1,7 +1,17 @@
 
 import { useState } from 'react';
 
-function TodoItem({ todo, onToggle, onDelete, onEdit }) {
+function TodoItem({
+  todo,
+  onToggle,
+  onDelete,
+  onEdit,
+  // Optional, provided by SortableTodoItem when the list is reorderable
+  containerRef,
+  containerStyle,
+  isDragging = false,
+  dragHandle = null,
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(todo.title);
 
@@ -20,7 +30,13 @@ function TodoItem({ todo, onToggle, onDelete, onEdit }) {
   }
 
   return (
-    <div className="todo-item">
+    <div
+      ref={containerRef}
+      style={containerStyle}
+      className={isDragging ? 'todo-item dragging' : 'todo-item'}
+    >
+      {dragHandle}
+
       {!isEditing && (
         <input
           type="checkbox"
