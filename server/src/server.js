@@ -5,6 +5,7 @@ const cors = require('cors');
 
 const pool = require('./config/db');
 const todoRoutes = require('./routes/todoRoutes');
+const groupRoutes = require('./routes/groupRoutes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -12,6 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/todos', todoRoutes);
+app.use('/api/groups', groupRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

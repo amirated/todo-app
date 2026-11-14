@@ -114,6 +114,132 @@ button:disabled {
   border-color: #c7d2fe;
 }
 
+/* Tabs (task groups) */
+.tabs-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e9edf5;
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tabs [role="tab"],
+.tabs .tab-add {
+  flex-shrink: 0;
+  margin-bottom: -1px;
+  padding: 10px 14px;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.tabs [role="tab"]:hover:not(:disabled),
+.tabs .tab-add:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #334155;
+  transform: none;
+}
+
+.tabs [role="tab"][aria-selected="true"] {
+  border-bottom-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.tabs [role="tab"]:focus-visible,
+.tab-actions button:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: -2px;
+}
+
+.tabs .tab-add {
+  color: #4f46e5;
+}
+
+.tab-name-input {
+  flex-shrink: 0;
+  width: 160px;
+  margin-bottom: 6px;
+  padding: 7px 10px;
+  background: #ffffff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  outline: none;
+  color: #172033;
+  font-size: 13px;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.tab-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+.tab-actions button,
+.confirm-actions button {
+  padding: 6px 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.tab-actions button:hover:not(:disabled),
+.confirm-actions button:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #334155;
+  transform: none;
+}
+
+.tab-actions button.danger:hover:not(:disabled),
+.confirm-actions button.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.confirm-actions button.danger:hover:not(:disabled) {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+/* Delete-tab confirmation */
+.confirm-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -12px 0 20px;
+  padding: 12px 14px;
+  background: #fff7f7;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #7f1d1d;
+  font-size: 13px;
+}
+
+.confirm-bar p {
+  margin: 0;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
 /* Todo list */
 .todo-list {
   display: flex;

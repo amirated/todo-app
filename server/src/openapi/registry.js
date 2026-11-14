@@ -20,6 +20,7 @@ const json = (schema, description) => ({
 const errorResponses = {
   validation: json(errorResponseSchema, 'Validation failed or malformed JSON'),
   notFound: json(errorResponseSchema, 'Todo not found'),
+  tabNotFound: json(errorResponseSchema, 'Tab not found'),
   conflict: json(errorResponseSchema, 'The todo list changed since it was loaded'),
   server: json(errorResponseSchema, 'Unexpected server error'),
 };

@@ -19,6 +19,19 @@ const titleSchema = (emptyMessage) =>
     .max(TITLE_MAX_LENGTH, `Title must be at most ${TITLE_MAX_LENGTH} characters`)
     .openapi({ example: 'Buy milk' });
 
+// The tab (task group) a todo belongs to.
+const groupIdSchema = z
+  .uuid({
+    error: (issue) =>
+      issue.input === undefined ? 'groupId is required' : 'groupId must be a valid UUID',
+  })
+  .openapi({ example: '7d2a4c1e-5b3f-4e8a-9c6d-1f0e2b3a4c5d' });
+
+// ?groupId=... on list and clear-completed
+const groupQuery = z.object({
+  groupId: groupIdSchema.openapi({ param: { description: 'Tab (task group) ID' } }),
+});
+
 const todoIdParams = z.object({
   id: z
     .uuid({ error: 'Todo ID must be a valid UUID' })
@@ -30,6 +43,7 @@ const todoIdParams = z.object({
 
 const createTodoBody = z
   .object({
+    groupId: groupIdSchema,
     title: titleSchema('Title is required'),
   })
   .openapi('CreateTodoRequest');
@@ -49,6 +63,7 @@ const updateTodoBody = z
 
 const reorderTodosBody = z
   .object({
+    groupId: groupIdSchema,
     orderedIds: z
       .array(z.uuid({ error: 'Each ID must be a valid UUID' }), {
         error: 'orderedIds must be an array of todo IDs',
@@ -58,7 +73,8 @@ const reorderTodosBody = z
         message: 'orderedIds must not contain duplicates',
       })
       .openapi({
-        description: 'Every todo ID, in the new order. Must match the current set of todos exactly.',
+        description:
+          "Every todo ID in the tab, in the new order. Must match the tab's current todos exactly.",
       }),
   })
   .openapi('ReorderTodosRequest');
@@ -66,6 +82,12 @@ const reorderTodosBody = z
 // ---------------------------------------------------------------------------
 // Request schemas for the validate() middleware: { body?, params?, query? }
 // ---------------------------------------------------------------------------
+
+// GET /api/todos?groupId=
+const listTodosSchema = z.object({ query: groupQuery });
+
+// DELETE /api/todos/completed?groupId=
+const clearCompletedSchema = z.object({ query: groupQuery });
 
 // POST /api/todos
 const createTodoSchema = z.object({ body: createTodoBody });
@@ -83,11 +105,14 @@ module.exports = {
   TITLE_MAX_LENGTH,
   REORDER_MAX_ITEMS,
   // building blocks (used by the OpenAPI docs)
+  groupQuery,
   todoIdParams,
   createTodoBody,
   updateTodoBody,
   reorderTodosBody,
   // request schemas (used by validate())
+  listTodosSchema,
+  clearCompletedSchema,
   createTodoSchema,
   updateTodoSchema,
   deleteTodoSchema,

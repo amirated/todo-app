@@ -7,6 +7,7 @@ const { version } = require('../../package.json');
 // Each *.openapi.js file registers its routes on the shared registry when it
 // is required. Add new route documentation files here.
 require('../routes/todoRoutes.openapi');
+require('../routes/groupRoutes.openapi');
 
 // GET /health lives in server.js, so it is documented here.
 registry.registerPath({
@@ -49,6 +50,7 @@ function generateOpenApiDocument() {
     security: [],
     servers: [{ url: 'http://localhost:5001', description: 'Local development' }],
     tags: [
+      { name: 'Tabs', description: 'Task groups shown as tabs' },
       { name: 'Todos', description: 'Create, update, delete and reorder todos' },
       { name: 'Health', description: 'Service status' },
     ],
