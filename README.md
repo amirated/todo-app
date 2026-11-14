@@ -42,12 +42,16 @@ npm run dev
 
 ## API
 
-| Method | Endpoint               | Description               |
-| ------ | ---------------------- | ------------------------- |
-| GET    | `/health`              | Server + database status  |
-| GET    | `/api/todos`           | List todos in saved order |
-| POST   | `/api/todos`           | Create a todo `{ title }` |
-| PUT    | `/api/todos/:id`       | Update `{ title?, completed? }` |
-| DELETE | `/api/todos/:id`       | Delete a todo             |
-| DELETE | `/api/todos/completed` | Delete all completed todos |
-| PUT    | `/api/todos/reorder`   | Save order `{ orderedIds: [uuid, ...] }` (all todos) |
+| Method | Endpoint                         | Description |
+| ------ | -------------------------------- | ----------- |
+| GET    | `/health`                        | Server + database status |
+| GET    | `/api/groups`                    | List tabs |
+| POST   | `/api/groups`                    | Create a tab `{ name }` |
+| PUT    | `/api/groups/:id`                | Rename a tab `{ name }` |
+| DELETE | `/api/groups/:id`                | Delete a tab and its todos (not the last tab) |
+| GET    | `/api/todos?groupId=`            | List a tab's todos in saved order |
+| POST   | `/api/todos`                     | Create a todo `{ groupId, title }` |
+| PUT    | `/api/todos/:id`                 | Update `{ title?, completed? }` |
+| DELETE | `/api/todos/:id`                 | Delete a todo |
+| DELETE | `/api/todos/completed?groupId=`  | Delete a tab's completed todos |
+| PUT    | `/api/todos/reorder`             | Save a tab's order `{ groupId, orderedIds }` |

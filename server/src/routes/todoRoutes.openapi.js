@@ -8,6 +8,7 @@
  */
 const { registry, json, errorResponses } = require('../openapi/registry');
 const {
+  groupQuery,
   todoIdParams,
   createTodoBody,
   updateTodoBody,
@@ -32,10 +33,13 @@ registry.registerPath({
   path: '/api/todos',
   operationId: 'listTodos',
   tags,
-  summary: 'List todos',
-  description: 'Returns all todos in their saved order (ascending `position`).',
+  summary: 'List the todos in a tab',
+  description: "Returns the tab's todos in their saved order (ascending `position`).",
+  request: { query: groupQuery },
   responses: {
-    200: json(todoListSchema, 'All todos'),
+    200: json(todoListSchema, "The tab's todos"),
+    400: errorResponses.validation,
+    404: errorResponses.tabNotFound,
     500: errorResponses.server,
   },
 });
@@ -46,12 +50,13 @@ registry.registerPath({
   path: '/api/todos',
   operationId: 'createTodo',
   tags,
-  summary: 'Create a todo',
-  description: 'The new todo is placed at the top of the list.',
+  summary: 'Create a todo in a tab',
+  description: 'The new todo is placed at the top of its tab.',
   request: { body: jsonBody(createTodoBody) },
   responses: {
     201: json(todoSchema, 'The created todo'),
     400: errorResponses.validation,
+    404: errorResponses.tabNotFound,
     500: errorResponses.server,
   },
 });
@@ -62,9 +67,12 @@ registry.registerPath({
   path: '/api/todos/completed',
   operationId: 'clearCompletedTodos',
   tags,
-  summary: 'Delete all completed todos',
+  summary: 'Delete the completed todos in a tab',
+  request: { query: groupQuery },
   responses: {
     200: json(clearCompletedSchema, 'Number of todos deleted'),
+    400: errorResponses.validation,
+    404: errorResponses.tabNotFound,
     500: errorResponses.server,
   },
 });
@@ -75,13 +83,14 @@ registry.registerPath({
   path: '/api/todos/reorder',
   operationId: 'reorderTodos',
   tags,
-  summary: 'Save the order of all todos',
+  summary: 'Save the order of the todos in a tab',
   description:
-    'Send every todo ID in the new order. Positions are rewritten in one transaction.',
+    "Send every todo ID in the tab, in the new order. Positions are rewritten in one transaction.",
   request: { body: jsonBody(reorderTodosBody) },
   responses: {
-    200: json(todoListSchema, 'All todos in their new order'),
+    200: json(todoListSchema, "The tab's todos in their new order"),
     400: errorResponses.validation,
+    404: errorResponses.tabNotFound,
     409: errorResponses.conflict,
     500: errorResponses.server,
   },

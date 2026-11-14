@@ -6,6 +6,7 @@ const { z } = require('../lib/zod');
 const todoSchema = z
   .object({
     id: z.uuid(),
+    group_id: z.uuid().openapi({ description: 'The tab (task group) this todo belongs to' }),
     title: z.string(),
     completed: z.boolean(),
     position: z.number().int().openapi({
@@ -17,6 +18,7 @@ const todoSchema = z
   .openapi('Todo', {
     example: {
       id: '3f1c9a3e-8a6b-4c2e-9f61-2d5b7c8e1a90',
+      group_id: '7d2a4c1e-5b3f-4e8a-9c6d-1f0e2b3a4c5d',
       title: 'Buy milk',
       completed: false,
       position: 0,
@@ -35,6 +37,33 @@ const clearCompletedSchema = z
   .object({ message: z.string(), deletedCount: z.number().int() })
   .openapi('ClearCompletedResponse', {
     example: { message: 'Completed todos deleted successfully', deletedCount: 2 },
+  });
+
+const groupSchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    position: z.number().int().openapi({ description: 'Tab order, lowest first' }),
+    created_at: z.iso.datetime(),
+    updated_at: z.iso.datetime(),
+  })
+  .openapi('TaskGroup', {
+    description: 'A tab that groups todos',
+    example: {
+      id: '7d2a4c1e-5b3f-4e8a-9c6d-1f0e2b3a4c5d',
+      name: 'My Tasks',
+      position: 0,
+      created_at: '2026-11-14T06:00:00.000Z',
+      updated_at: '2026-11-14T06:00:00.000Z',
+    },
+  });
+
+const groupListSchema = z.array(groupSchema).openapi('TaskGroupList');
+
+const deleteGroupResponseSchema = z
+  .object({ message: z.string(), deletedTodoCount: z.number().int() })
+  .openapi('DeleteGroupResponse', {
+    example: { message: 'Tab deleted successfully', deletedTodoCount: 3 },
   });
 
 const healthSchema = z
@@ -78,6 +107,9 @@ module.exports = {
   todoListSchema,
   messageSchema,
   clearCompletedSchema,
+  groupSchema,
+  groupListSchema,
+  deleteGroupResponseSchema,
   healthSchema,
   errorResponseSchema,
 };

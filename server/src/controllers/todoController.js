@@ -1,14 +1,36 @@
 const pool = require('../config/db');
 const AppError = require('../utils/AppError');
+const withTransaction = require('../utils/withTransaction');
+const { isForeignKeyViolation } = require('../utils/pgErrors');
 
 // Input has already been validated by the validate() middleware and is read
 // from req.validated. Errors thrown here (including rejected DB queries) are
 // forwarded to the centralized error handler automatically by Express 5.
 
-// GET /api/todos
+const tabNotFound = () => new AppError(404, 'Tab not found');
+
+// Throws 404 if the tab doesn't exist. `lockClause` lets a transaction hold
+// the row (e.g. 'FOR SHARE') so the tab can't be deleted mid-operation.
+async function assertGroupExists(db, groupId, lockClause = '') {
+  const { rowCount } = await db.query(
+    `SELECT 1 FROM task_groups WHERE id = $1 ${lockClause}`,
+    [groupId]
+  );
+
+  if (rowCount === 0) throw tabNotFound();
+}
+
+// GET /api/todos?groupId=
 async function getTodos(req, res) {
+  const { groupId } = req.validated.query;
+
+  await assertGroupExists(pool, groupId);
+
   const result = await pool.query(
-    'SELECT * FROM todos ORDER BY position ASC, created_at DESC'
+    `SELECT * FROM todos
+     WHERE group_id = $1
+     ORDER BY position ASC, created_at DESC`,
+    [groupId]
   );
 
   res.json(result.rows);
@@ -16,17 +38,27 @@ async function getTodos(req, res) {
 
 // POST /api/todos
 async function createTodo(req, res) {
-  const { title } = req.validated.body;
+  const { groupId, title } = req.validated.body;
 
-  const result = await pool.query(
-    // New todos go to the top: one position above the current first item.
-    `INSERT INTO todos (title, position)
-     VALUES ($1, (SELECT COALESCE(MIN(position), 0) - 1 FROM todos))
-     RETURNING *`,
-    [title]
-  );
+  try {
+    const result = await pool.query(
+      // New todos go to the top of their tab: one position above its first item.
+      `INSERT INTO todos (group_id, title, position)
+       VALUES (
+         $1,
+         $2,
+         (SELECT COALESCE(MIN(position), 0) - 1 FROM todos WHERE group_id = $1)
+       )
+       RETURNING *`,
+      [groupId, title]
+    );
 
-  res.status(201).json(result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    // The foreign key rejects a groupId that doesn't exist.
+    if (isForeignKeyViolation(error)) throw tabNotFound();
+    throw error;
+  }
 }
 
 // PUT /api/todos/:id
@@ -67,10 +99,15 @@ async function deleteTodo(req, res) {
   res.json({ message: 'Todo deleted successfully' });
 }
 
-// DELETE /api/todos/completed
+// DELETE /api/todos/completed?groupId=
 async function clearCompleted(req, res) {
+  const { groupId } = req.validated.query;
+
+  await assertGroupExists(pool, groupId);
+
   const result = await pool.query(
-    'DELETE FROM todos WHERE completed = TRUE RETURNING id'
+    'DELETE FROM todos WHERE group_id = $1 AND completed = TRUE',
+    [groupId]
   );
 
   res.json({
@@ -81,21 +118,26 @@ async function clearCompleted(req, res) {
 
 // PUT /api/todos/reorder
 async function reorderTodos(req, res) {
+  const { groupId } = req.validated.body;
   // Postgres returns UUIDs in lowercase; normalise so the set comparison matches.
   const orderedIds = req.validated.body.orderedIds.map((id) => id.toLowerCase());
-  const client = await pool.connect();
 
-  try {
-    await client.query('BEGIN');
+  const rows = await withTransaction(async (client) => {
+    // Hold the tab so it can't be deleted, and lock its todos so concurrent
+    // reorders/creates/deletes in this tab can't interleave.
+    await assertGroupExists(client, groupId, 'FOR SHARE');
 
-    // Lock every row so concurrent reorders/creates/deletes can't interleave.
-    const { rows } = await client.query('SELECT id FROM todos FOR UPDATE');
+    const current = await client.query(
+      'SELECT id FROM todos WHERE group_id = $1 FOR UPDATE',
+      [groupId]
+    );
 
-    // The client must send exactly the current set of todos. A mismatch means
-    // its list is stale (e.g. a todo was added or deleted in another tab).
+    // The client must send exactly the tab's current todos. A mismatch means
+    // its list is stale (e.g. a todo was added or deleted in another browser tab).
     const requested = new Set(orderedIds);
     const matches =
-      rows.length === orderedIds.length && rows.every((row) => requested.has(row.id));
+      current.rows.length === orderedIds.length &&
+      current.rows.every((row) => requested.has(row.id));
 
     if (!matches) {
       throw new AppError(
@@ -109,22 +151,21 @@ async function reorderTodos(req, res) {
       `UPDATE todos AS t
        SET position = o.ord - 1
        FROM unnest($1::uuid[]) WITH ORDINALITY AS o(id, ord)
-       WHERE t.id = o.id`,
-      [orderedIds]
+       WHERE t.id = o.id AND t.group_id = $2`,
+      [orderedIds, groupId]
     );
 
     const result = await client.query(
-      'SELECT * FROM todos ORDER BY position ASC, created_at DESC'
+      `SELECT * FROM todos
+       WHERE group_id = $1
+       ORDER BY position ASC, created_at DESC`,
+      [groupId]
     );
 
-    await client.query('COMMIT');
-    res.json(result.rows);
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error; // forwarded to the centralized error handler
-  } finally {
-    client.release();
-  }
+    return result.rows;
+  });
+
+  res.json(rows);
 }
 
 module.exports = {

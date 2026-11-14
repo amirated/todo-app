@@ -3,6 +3,8 @@ const router = express.Router();
 
 const validate = require('../middleware/validate');
 const {
+  listTodosSchema,
+  clearCompletedSchema,
   createTodoSchema,
   updateTodoSchema,
   deleteTodoSchema,
@@ -17,10 +19,10 @@ const {
   reorderTodos,
 } = require('../controllers/todoController');
 
-router.get('/', getTodos);
+router.get('/', validate(listTodosSchema), getTodos);
 router.post('/', validate(createTodoSchema), createTodo);
 // Static paths must stay above '/:id' so they are not treated as ids
-router.delete('/completed', clearCompleted);
+router.delete('/completed', validate(clearCompletedSchema), clearCompleted);
 router.put('/reorder', validate(reorderTodosSchema), reorderTodos);
 router.put('/:id', validate(updateTodoSchema), updateTodo);
 router.delete('/:id', validate(deleteTodoSchema), deleteTodo);
