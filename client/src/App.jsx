@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
+import { Toaster, toast } from 'sonner';
 
 import TodoForm from './components/TodoForm';
 import TodoItem from './components/TodoItem';
@@ -26,42 +27,47 @@ function sortByIdOrder(items, orderedIds) {
   return [...items].sort((a, b) => (rank.get(a.id) ?? -1) - (rank.get(b.id) ?? -1));
 }
 
+// Error toast: short summary as the title, the server's reason underneath.
+function notifyError(title, err, options = {}) {
+  toast.error(title, { description: err.message, ...options });
+}
+
 function App() {
   const [todos, setTodos] = useState([]);
   const [filter, setFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  // Only for when the list itself can't be loaded; action failures use toasts.
+  const [loadError, setLoadError] = useState('');
 
   // Incremented on every drop; lets a slow, older reorder request know it
   // has been superseded so it doesn't roll back a newer order.
   const latestReorderRef = useRef(0);
 
+  async function loadTodos() {
+    try {
+      setLoadError('');
+      const data = await fetchTodos();
+      setTodos(data);
+    } catch (err) {
+      setLoadError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   // Fetch todos when the app mounts.
   useEffect(() => {
-    async function loadTodos() {
-      try {
-        setError('');
-        const data = await fetchTodos();
-        setTodos(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
     loadTodos();
   }, []);
 
   // Create a todo.
   async function addTodo(title) {
     try {
-      setError('');
       const newTodo = await createTodo(title);
       setTodos((prev) => [newTodo, ...prev]);
       return true;
     } catch (err) {
-      setError(err.message);
+      notifyError("Couldn't add task", err);
       return false;
     }
   }
@@ -72,7 +78,6 @@ function App() {
     if (!todo) return;
 
     try {
-      setError('');
       const updatedTodo = await updateTodo(id, {
         completed: !todo.completed,
       });
@@ -81,45 +86,46 @@ function App() {
         prev.map((item) => item.id === id ? updatedTodo : item)
       );
     } catch (err) {
-      setError(err.message);
+      notifyError("Couldn't update task", err);
     }
   }
 
   // Edit a todo.
   async function editTodo(id, title) {
     try {
-      setError('');
       const updatedTodo = await updateTodo(id, { title });
 
       setTodos((prev) =>
         prev.map((item) => item.id === id ? updatedTodo : item)
       );
     } catch (err) {
-      setError(err.message);
+      notifyError("Couldn't save changes", err);
     }
   }
 
   // Delete a todo.
   async function deleteTodo(id) {
     try {
-      setError('');
       await deleteTodoRequest(id);
 
       setTodos((prev) => prev.filter((item) => item.id !== id));
+      toast.success('Task deleted');
     } catch (err) {
-      setError(err.message);
+      notifyError("Couldn't delete task", err);
     }
   }
 
   // Delete all completed todos.
   async function clearCompleted() {
     try {
-      setError('');
-      await clearCompletedTodos();
+      const { deletedCount } = await clearCompletedTodos();
 
       setTodos((prev) => prev.filter((item) => !item.completed));
+      toast.success(
+        `Cleared ${deletedCount} completed ${deletedCount === 1 ? 'task' : 'tasks'}`
+      );
     } catch (err) {
-      setError(err.message);
+      notifyError("Couldn't clear completed tasks", err);
     }
   }
 
@@ -134,27 +140,37 @@ function App() {
 
     // Optimistic update: the list moves immediately, the save happens after.
     setTodos(reordered);
-    setError('');
 
     const requestId = ++latestReorderRef.current;
 
+    // A fixed id makes repeated reorder toasts replace one another, not stack.
+    const toastOptions = { id: 'reorder' };
+
     try {
       await reorderTodos(reordered.map((todo) => todo.id));
+
+      // Only confirm the newest drop; an older one finishing late stays silent.
+      if (requestId === latestReorderRef.current) {
+        toast.success('list reordering successful', toastOptions);
+      }
     } catch (err) {
       if (requestId !== latestReorderRef.current) return; // a newer drop wins
-
-      setError(err.message);
 
       if (err.status === 409) {
         // Our list is out of date (changed elsewhere): load the server's version.
         try {
           setTodos(await fetchTodos());
-        } catch {
-          // Keep the conflict message; the list stays as the user arranged it.
+          toast.warning('Your list was out of date', {
+            ...toastOptions,
+            description: 'It changed somewhere else, so the latest version is now shown. Try the move again.',
+          });
+        } catch (refreshErr) {
+          notifyError("Couldn't load the latest list", refreshErr, toastOptions);
         }
       } else {
         // Roll back only the order, keeping toggles/edits made in the meantime.
         setTodos((current) => sortByIdOrder(current, previousOrder));
+        notifyError("Couldn't save the new order", err, toastOptions);
       }
     }
   }
@@ -177,10 +193,17 @@ function App() {
     <div className="app">
       <h1>My Todo App</h1>
 
-      {error && (
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        style={{ fontFamily: 'inherit' }} // match the app's Inter font
+      />
+
+      {loadError && (
         <div className="error-message" role="alert">
-          {error}
-          <button onClick={() => setError('')}>Dismiss</button>
+          Couldn't load your tasks: {loadError}
+          <button onClick={loadTodos}>Retry</button>
         </div>
       )}
 
