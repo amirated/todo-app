@@ -168,6 +168,16 @@ button:disabled {
   color: #4f46e5;
 }
 
+/* A tab being dragged to a new position */
+.tabs [role="tab"].dragging {
+  position: relative;
+  z-index: 1;
+  background: #eef2ff;
+  border-bottom-color: transparent;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+  cursor: grabbing;
+}
+
 .tab-name-input {
   flex-shrink: 0;
   width: 160px;

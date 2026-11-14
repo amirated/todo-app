@@ -3,7 +3,12 @@
  * Keep in step with groupRoutes.js.
  */
 const { registry, json, errorResponses } = require('../openapi/registry');
-const { groupIdParams, createGroupBody, updateGroupBody } = require('../schemas/groupSchemas');
+const {
+  groupIdParams,
+  createGroupBody,
+  updateGroupBody,
+  reorderGroupsBody,
+} = require('../schemas/groupSchemas');
 const {
   groupSchema,
   groupListSchema,
@@ -43,6 +48,23 @@ registry.registerPath({
     201: json(groupSchema, 'The created tab'),
     400: errorResponses.validation,
     409: json(errorResponseSchema, 'A tab with that name already exists'),
+    500: errorResponses.server,
+  },
+});
+
+// router.put('/reorder', validate(reorderGroupsSchema), reorderGroups)
+registry.registerPath({
+  method: 'put',
+  path: '/api/groups/reorder',
+  operationId: 'reorderGroups',
+  tags,
+  summary: 'Save the order of the tabs',
+  description: 'Send every tab ID in the new order. Positions are rewritten in one transaction.',
+  request: { body: jsonBody(reorderGroupsBody) },
+  responses: {
+    200: json(groupListSchema, 'All tabs in their new order'),
+    400: errorResponses.validation,
+    409: json(errorResponseSchema, 'The tabs changed since they were loaded'),
     500: errorResponses.server,
   },
 });

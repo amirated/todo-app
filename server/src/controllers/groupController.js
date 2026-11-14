@@ -84,9 +84,52 @@ async function deleteGroup(req, res) {
   res.json({ message: 'Tab deleted successfully', deletedTodoCount });
 }
 
+// PUT /api/groups/reorder
+async function reorderGroups(req, res) {
+  // Postgres returns UUIDs in lowercase; normalise so the set comparison matches.
+  const orderedIds = req.validated.body.orderedIds.map((id) => id.toLowerCase());
+
+  const rows = await withTransaction(async (client) => {
+    // Lock all tabs so concurrent creates/deletes/reorders can't interleave.
+    const current = await client.query('SELECT id FROM task_groups FOR UPDATE');
+
+    // The client must send exactly the current tabs. A mismatch means its list
+    // is stale (e.g. a tab was added or deleted in another browser tab).
+    const requested = new Set(orderedIds);
+    const matches =
+      current.rows.length === orderedIds.length &&
+      current.rows.every((row) => requested.has(row.id));
+
+    if (!matches) {
+      throw new AppError(
+        409,
+        'Your tabs have changed since they were loaded. Refresh and try again.'
+      );
+    }
+
+    // One statement: each ID's index in the array becomes its position.
+    await client.query(
+      `UPDATE task_groups AS g
+       SET position = o.ord - 1
+       FROM unnest($1::uuid[]) WITH ORDINALITY AS o(id, ord)
+       WHERE g.id = o.id`,
+      [orderedIds]
+    );
+
+    const result = await client.query(
+      'SELECT * FROM task_groups ORDER BY position ASC, created_at ASC'
+    );
+
+    return result.rows;
+  });
+
+  res.json(rows);
+}
+
 module.exports = {
   getGroups,
   createGroup,
   updateGroup,
   deleteGroup,
+  reorderGroups,
 };

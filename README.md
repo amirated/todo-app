@@ -47,6 +47,7 @@ npm run dev
 | GET    | `/health`                        | Server + database status |
 | GET    | `/api/groups`                    | List tabs |
 | POST   | `/api/groups`                    | Create a tab `{ name }` |
+| PUT    | `/api/groups/reorder`            | Save tab order `{ orderedIds }` (all tabs) |
 | PUT    | `/api/groups/:id`                | Rename a tab `{ name }` |
 | DELETE | `/api/groups/:id`                | Delete a tab and its todos (not the last tab) |
 | GET    | `/api/todos?groupId=`            | List a tab's todos in saved order |

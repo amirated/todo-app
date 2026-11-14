@@ -23,3 +23,10 @@ export function deleteGroup(id) {
     method: 'DELETE',
   });
 }
+
+export function reorderGroups(orderedIds) {
+  return request('/groups/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ orderedIds }),
+  });
+}

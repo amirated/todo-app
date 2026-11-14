@@ -22,6 +22,7 @@ import {
   createGroup,
   renameGroup,
   deleteGroup,
+  reorderGroups,
 } from './services/groupApi';
 
 import './App.css';
@@ -86,6 +87,7 @@ function App() {
   // Incremented on every drop; lets a slow, older reorder request know it
   // has been superseded so it doesn't roll back a newer order.
   const latestReorderRef = useRef(0);
+  const latestTabReorderRef = useRef(0); // same, for reordering tabs
 
   async function loadGroups() {
     try {
@@ -198,6 +200,55 @@ function App() {
       notifyError("Couldn't delete tab", err);
     } finally {
       setIsDeletingGroup(false);
+    }
+  }
+
+  // Move a tab (drag-and-drop) and persist the full new tab order.
+  async function reorderGroup(activeId, overId) {
+    const oldIndex = groups.findIndex((group) => group.id === activeId);
+    const newIndex = groups.findIndex((group) => group.id === overId);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    const previousOrder = groups.map((group) => group.id);
+    const reordered = arrayMove(groups, oldIndex, newIndex);
+
+    // Optimistic update: the tab moves immediately, the save happens after.
+    setGroups(reordered);
+
+    const requestId = ++latestTabReorderRef.current;
+    const toastOptions = { id: 'reorder-tabs' };
+
+    try {
+      await reorderGroups(reordered.map((group) => group.id));
+
+      // Only confirm the newest drop; an older one finishing late stays silent.
+      if (requestId === latestTabReorderRef.current) {
+        toast.success('Tab order saved', toastOptions);
+      }
+    } catch (err) {
+      if (requestId !== latestTabReorderRef.current) return; // a newer drop wins
+
+      if (err.status === 409) {
+        // Tabs were added or deleted elsewhere: load the server's version.
+        try {
+          const latest = await fetchGroups();
+          setGroups(latest);
+          // If the open tab was deleted elsewhere, fall back to the first one.
+          if (!latest.some((group) => group.id === activeGroupIdRef.current)) {
+            setActiveGroupId(latest[0]?.id ?? null);
+          }
+          toast.warning('Your tabs were out of date', {
+            ...toastOptions,
+            description: 'They changed somewhere else, so the latest tabs are now shown. Try the move again.',
+          });
+        } catch (refreshErr) {
+          notifyError("Couldn't load the latest tabs", refreshErr, toastOptions);
+        }
+      } else {
+        // Roll back only the order, keeping renames/new tabs made in the meantime.
+        setGroups((current) => sortByIdOrder(current, previousOrder));
+        notifyError("Couldn't save the tab order", err, toastOptions);
+      }
     }
   }
 
@@ -367,6 +418,7 @@ function App() {
             onCreate={addGroup}
             onRename={renameTab}
             onRequestDelete={setPendingDelete}
+            onReorder={reorderGroup}
           />
 
           {pendingDelete && (
