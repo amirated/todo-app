@@ -81,7 +81,8 @@ async function clearCompleted(req, res) {
 
 // PUT /api/todos/reorder
 async function reorderTodos(req, res) {
-  const { orderedIds } = req.validated.body;
+  // Postgres returns UUIDs in lowercase; normalise so the set comparison matches.
+  const orderedIds = req.validated.body.orderedIds.map((id) => id.toLowerCase());
   const client = await pool.connect();
 
   try {
