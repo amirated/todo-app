@@ -1,10 +1,12 @@
-const { z } = require('zod');
+const { z } = require('../lib/zod');
 
 const TITLE_MAX_LENGTH = 255;
 const REORDER_MAX_ITEMS = 1000;
 
-// Each schema describes the parts of the request it cares about:
-// { body?, params?, query? }. Parts that are left out are not validated.
+// ---------------------------------------------------------------------------
+// Building blocks. Exported individually so the OpenAPI docs reuse exactly the
+// same definitions that the validate() middleware enforces.
+// ---------------------------------------------------------------------------
 
 const titleSchema = (emptyMessage) =>
   z
@@ -14,55 +16,78 @@ const titleSchema = (emptyMessage) =>
     })
     .trim()
     .min(1, emptyMessage)
-    .max(TITLE_MAX_LENGTH, `Title must be at most ${TITLE_MAX_LENGTH} characters`);
+    .max(TITLE_MAX_LENGTH, `Title must be at most ${TITLE_MAX_LENGTH} characters`)
+    .openapi({ example: 'Buy milk' });
 
 const todoIdParams = z.object({
-  id: z.uuid({ error: 'Todo ID must be a valid UUID' }),
-});
-
-// POST /api/todos
-const createTodoSchema = z.object({
-  body: z.object({
-    title: titleSchema('Title is required'),
-  }),
-});
-
-// PUT /api/todos/:id — partial update: title and/or completed
-const updateTodoSchema = z.object({
-  params: todoIdParams,
-  body: z
-    .object({
-      title: titleSchema('Title cannot be empty').optional(),
-      completed: z.boolean({ error: 'Completed must be a boolean' }).optional(),
-    })
-    .refine((body) => body.title !== undefined || body.completed !== undefined, {
-      message: 'Nothing to update',
+  id: z
+    .uuid({ error: 'Todo ID must be a valid UUID' })
+    .openapi({
+      param: { description: 'Todo ID' },
+      example: '3f1c9a3e-8a6b-4c2e-9f61-2d5b7c8e1a90',
     }),
 });
 
-// DELETE /api/todos/:id
-const deleteTodoSchema = z.object({
-  params: todoIdParams,
-});
+const createTodoBody = z
+  .object({
+    title: titleSchema('Title is required'),
+  })
+  .openapi('CreateTodoRequest');
 
-// PUT /api/todos/reorder — the complete list of todo IDs in their new order
-const reorderTodosSchema = z.object({
-  body: z.object({
+const updateTodoBody = z
+  .object({
+    title: titleSchema('Title cannot be empty').optional(),
+    completed: z.boolean({ error: 'Completed must be a boolean' }).optional(),
+  })
+  .refine((body) => body.title !== undefined || body.completed !== undefined, {
+    message: 'Nothing to update',
+  })
+  .openapi('UpdateTodoRequest', {
+    description: 'Partial update. At least one of `title` or `completed` is required.',
+    example: { completed: true },
+  });
+
+const reorderTodosBody = z
+  .object({
     orderedIds: z
       .array(z.uuid({ error: 'Each ID must be a valid UUID' }), {
         error: 'orderedIds must be an array of todo IDs',
       })
       .max(REORDER_MAX_ITEMS, `orderedIds can contain at most ${REORDER_MAX_ITEMS} IDs`)
-      .transform((ids) => ids.map((id) => id.toLowerCase()))
-      .refine((ids) => new Set(ids).size === ids.length, {
+      .refine((ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length, {
         message: 'orderedIds must not contain duplicates',
+      })
+      .openapi({
+        description: 'Every todo ID, in the new order. Must match the current set of todos exactly.',
       }),
-  }),
-});
+  })
+  .openapi('ReorderTodosRequest');
+
+// ---------------------------------------------------------------------------
+// Request schemas for the validate() middleware: { body?, params?, query? }
+// ---------------------------------------------------------------------------
+
+// POST /api/todos
+const createTodoSchema = z.object({ body: createTodoBody });
+
+// PUT /api/todos/:id
+const updateTodoSchema = z.object({ params: todoIdParams, body: updateTodoBody });
+
+// DELETE /api/todos/:id
+const deleteTodoSchema = z.object({ params: todoIdParams });
+
+// PUT /api/todos/reorder
+const reorderTodosSchema = z.object({ body: reorderTodosBody });
 
 module.exports = {
   TITLE_MAX_LENGTH,
   REORDER_MAX_ITEMS,
+  // building blocks (used by the OpenAPI docs)
+  todoIdParams,
+  createTodoBody,
+  updateTodoBody,
+  reorderTodosBody,
+  // request schemas (used by validate())
   createTodoSchema,
   updateTodoSchema,
   deleteTodoSchema,

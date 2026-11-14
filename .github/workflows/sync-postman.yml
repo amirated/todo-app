@@ -1,0 +1,77 @@
+name: Sync Postman collection
+
+# Regenerates the OpenAPI spec from the Zod schemas and overwrites the
+# Postman collection whenever backend code reaches main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/sync-postman.yml'
+  workflow_dispatch: # allows a manual run from the Actions tab
+
+# If several pushes land close together, only the newest one syncs.
+concurrency:
+  group: sync-postman
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No server boot, database or .env needed: only Zod schemas are loaded.
+      - name: Generate OpenAPI spec
+        run: npm run generate:openapi
+
+      - name: Convert OpenAPI spec to Postman collection
+        run: >-
+          npx openapi2postmanv2
+          -s openapi.json
+          -o postman_collection.json
+          -p
+          -O folderStrategy=Tags
+
+      - name: Build Postman API payload
+        run: |
+          jq '{collection: .}' postman_collection.json > payload.json
+
+      - name: Overwrite Postman collection
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+          # Accepts the ID as either a secret or a repository variable.
+          POSTMAN_COLLECTION_ID: ${{ secrets.POSTMAN_COLLECTION_ID || vars.POSTMAN_COLLECTION_ID }}
+        run: |
+          if [ -z "$POSTMAN_API_KEY" ] || [ -z "$POSTMAN_COLLECTION_ID" ]; then
+            echo "::error::Set the POSTMAN_API_KEY and POSTMAN_COLLECTION_ID repository secrets."
+            exit 1
+          fi
+
+          # --fail-with-body: fail the step on HTTP errors and print Postman's error message
+          curl --fail-with-body --silent --show-error \
+            --request PUT \
+            --url "https://api.getpostman.com/collections/${POSTMAN_COLLECTION_ID}" \
+            --header "X-Api-Key: ${POSTMAN_API_KEY}" \
+            --header "Content-Type: application/json" \
+            --data-binary @payload.json
+          echo

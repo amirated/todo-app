@@ -22,3 +22,8 @@ npm-debug.log*
 
 # Stray empty lockfile at repo root (each app has its own)
 /package-lock.json
+
+# Generated artifacts (built in CI by the Postman sync workflow)
+openapi.json
+postman_collection.json
+payload.json
