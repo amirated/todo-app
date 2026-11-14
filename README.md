@@ -15,25 +15,23 @@ todo-app/
 
 ## Setup
 
-### 1. Database
-
-Create a database, then create the `todos` table:
+### 1. Database and server
 
 ```bash
 createdb todo_app
-psql "postgresql://USER:PASSWORD@localhost:5432/todo_app" -f server/db/schema.sql
-```
-
-### 2. Server
-
-```bash
 cd server
 cp .env.example .env   # then set DATABASE_URL
 npm install
+npm run migrate        # creates/updates tables from db/migrations/
 npm run dev            # http://localhost:5001
 ```
 
-### 3. Client
+Schema changes live in `server/db/migrations/` as numbered `.sql` files.
+`npm run migrate` applies any that have not run yet (tracked in the
+`schema_migrations` table), each in its own transaction. Run it after
+pulling changes that add a migration.
+
+### 2. Client
 
 ```bash
 cd client
@@ -47,8 +45,9 @@ npm run dev
 | Method | Endpoint               | Description               |
 | ------ | ---------------------- | ------------------------- |
 | GET    | `/health`              | Server + database status  |
-| GET    | `/api/todos`           | List todos (newest first) |
+| GET    | `/api/todos`           | List todos in saved order |
 | POST   | `/api/todos`           | Create a todo `{ title }` |
 | PUT    | `/api/todos/:id`       | Update `{ title?, completed? }` |
 | DELETE | `/api/todos/:id`       | Delete a todo             |
 | DELETE | `/api/todos/completed` | Delete all completed todos |
+| PUT    | `/api/todos/reorder`   | Save order `{ orderedIds: [uuid, ...] }` (all todos) |

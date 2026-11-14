@@ -17,7 +17,9 @@ async function request(endpoint = '', options = {}) {
       data.error?.details?.[0]?.message ||
       data.error?.message ||
       `Request failed (${response.status})`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status; // lets callers react to e.g. 409 Conflict
+    throw error;
   }
 
   return data;
@@ -50,5 +52,12 @@ export function deleteTodo(id) {
 export function clearCompletedTodos() {
   return request('/completed', {
     method: 'DELETE',
+  });
+}
+
+export function reorderTodos(orderedIds) {
+  return request('/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ orderedIds }),
   });
 }

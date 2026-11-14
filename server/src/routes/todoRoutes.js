@@ -6,6 +6,7 @@ const {
   createTodoSchema,
   updateTodoSchema,
   deleteTodoSchema,
+  reorderTodosSchema,
 } = require('../schemas/todoSchemas');
 const {
   getTodos,
@@ -13,12 +14,14 @@ const {
   updateTodo,
   deleteTodo,
   clearCompleted,
+  reorderTodos,
 } = require('../controllers/todoController');
 
 router.get('/', getTodos);
 router.post('/', validate(createTodoSchema), createTodo);
-// Must stay above '/:id' so "completed" is not treated as an id
+// Static paths must stay above '/:id' so they are not treated as ids
 router.delete('/completed', clearCompleted);
+router.put('/reorder', validate(reorderTodosSchema), reorderTodos);
 router.put('/:id', validate(updateTodoSchema), updateTodo);
 router.delete('/:id', validate(deleteTodoSchema), deleteTodo);
 

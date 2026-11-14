@@ -1,5 +1,6 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
 
 import TodoForm from './components/TodoForm';
 import TodoItem from './components/TodoItem';
@@ -13,15 +14,27 @@ import {
   updateTodo,
   deleteTodo as deleteTodoRequest,
   clearCompletedTodos,
+  reorderTodos,
 } from './services/todoApi';
 
 import './App.css';
+
+// Sort items to match a list of IDs. Items not in the list (e.g. created while
+// a request was in flight) go to the top, matching where new todos appear.
+function sortByIdOrder(items, orderedIds) {
+  const rank = new Map(orderedIds.map((id, index) => [id, index]));
+  return [...items].sort((a, b) => (rank.get(a.id) ?? -1) - (rank.get(b.id) ?? -1));
+}
 
 function App() {
   const [todos, setTodos] = useState([]);
   const [filter, setFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Incremented on every drop; lets a slow, older reorder request know it
+  // has been superseded so it doesn't roll back a newer order.
+  const latestReorderRef = useRef(0);
 
   // Fetch todos when the app mounts.
   useEffect(() => {
@@ -110,6 +123,42 @@ function App() {
     }
   }
 
+  // Move a todo (drag-and-drop) and persist the full new order.
+  async function reorderTodo(activeId, overId) {
+    const oldIndex = todos.findIndex((todo) => todo.id === activeId);
+    const newIndex = todos.findIndex((todo) => todo.id === overId);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    const previousOrder = todos.map((todo) => todo.id);
+    const reordered = arrayMove(todos, oldIndex, newIndex);
+
+    // Optimistic update: the list moves immediately, the save happens after.
+    setTodos(reordered);
+    setError('');
+
+    const requestId = ++latestReorderRef.current;
+
+    try {
+      await reorderTodos(reordered.map((todo) => todo.id));
+    } catch (err) {
+      if (requestId !== latestReorderRef.current) return; // a newer drop wins
+
+      setError(err.message);
+
+      if (err.status === 409) {
+        // Our list is out of date (changed elsewhere): load the server's version.
+        try {
+          setTodos(await fetchTodos());
+        } catch {
+          // Keep the conflict message; the list stays as the user arranged it.
+        }
+      } else {
+        // Roll back only the order, keeping toggles/edits made in the meantime.
+        setTodos((current) => sortByIdOrder(current, previousOrder));
+      }
+    }
+  }
+
   const filteredTodos = todos.filter((todo) => {
     if (filter === 'active') return !todo.completed;
     if (filter === 'completed') return todo.completed;
@@ -141,11 +190,13 @@ function App() {
 
       <TodoFilters
         filter={filter}
-        onChange={setFilter}
+        onFilterChange={setFilter}
       />
 
       <TodoList
         todos={filteredTodos}
+        isReorderable={filter === 'all'}
+        onReorder={reorderTodo}
         onToggle={toggleTodo}
         onDelete={deleteTodo}
         onEdit={editTodo}

@@ -1,6 +1,7 @@
 const { z } = require('zod');
 
 const TITLE_MAX_LENGTH = 255;
+const REORDER_MAX_ITEMS = 1000;
 
 // Each schema describes the parts of the request it cares about:
 // { body?, params?, query? }. Parts that are left out are not validated.
@@ -44,9 +45,26 @@ const deleteTodoSchema = z.object({
   params: todoIdParams,
 });
 
+// PUT /api/todos/reorder — the complete list of todo IDs in their new order
+const reorderTodosSchema = z.object({
+  body: z.object({
+    orderedIds: z
+      .array(z.uuid({ error: 'Each ID must be a valid UUID' }), {
+        error: 'orderedIds must be an array of todo IDs',
+      })
+      .max(REORDER_MAX_ITEMS, `orderedIds can contain at most ${REORDER_MAX_ITEMS} IDs`)
+      .transform((ids) => ids.map((id) => id.toLowerCase()))
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: 'orderedIds must not contain duplicates',
+      }),
+  }),
+});
+
 module.exports = {
   TITLE_MAX_LENGTH,
+  REORDER_MAX_ITEMS,
   createTodoSchema,
   updateTodoSchema,
   deleteTodoSchema,
+  reorderTodosSchema,
 };
