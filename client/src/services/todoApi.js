@@ -1,70 +1,40 @@
-const API_URL = `${import.meta.env.VITE_API_URL}/api/todos`;
+import { request } from './apiClient';
 
-async function request(endpoint = '', options = {}) {
-  let response;
+const groupQuery = (groupId) => `groupId=${encodeURIComponent(groupId)}`;
 
-  try {
-    response = await fetch(`${API_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
-  } catch {
-    // fetch only rejects on network failure (server down, offline, CORS)
-    throw new Error('Cannot reach the server. Check that it is running and try again.');
-  }
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    // Server errors look like { success: false, error: { message, details } }
-    const message =
-      data.error?.details?.[0]?.message ||
-      data.error?.message ||
-      `Request failed (${response.status})`;
-    const error = new Error(message);
-    error.status = response.status; // lets callers react to e.g. 409 Conflict
-    throw error;
-  }
-
-  return data;
+export function fetchTodos(groupId) {
+  return request(`/todos?${groupQuery(groupId)}`);
 }
 
-export function fetchTodos() {
-  return request();
-}
-
-export function createTodo(title) {
-  return request('', {
+export function createTodo(groupId, title) {
+  return request('/todos', {
     method: 'POST',
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ groupId, title }),
   });
 }
 
 export function updateTodo(id, updates) {
-  return request(`/${id}`, {
+  return request(`/todos/${id}`, {
     method: 'PUT',
     body: JSON.stringify(updates),
   });
 }
 
 export function deleteTodo(id) {
-  return request(`/${id}`, {
+  return request(`/todos/${id}`, {
     method: 'DELETE',
   });
 }
 
-export function clearCompletedTodos() {
-  return request('/completed', {
+export function clearCompletedTodos(groupId) {
+  return request(`/todos/completed?${groupQuery(groupId)}`, {
     method: 'DELETE',
   });
 }
 
-export function reorderTodos(orderedIds) {
-  return request('/reorder', {
+export function reorderTodos(groupId, orderedIds) {
+  return request('/todos/reorder', {
     method: 'PUT',
-    body: JSON.stringify({ orderedIds }),
+    body: JSON.stringify({ groupId, orderedIds }),
   });
 }
