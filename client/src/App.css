@@ -165,7 +165,42 @@ button:disabled {
 }
 
 .tabs .tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
   color: #4f46e5;
+}
+
+/* Grip shown inside draggable tabs (same glyph as the task drag handle) */
+.tabs [role="tab"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The grip glyph brings its own side spacing, so trim the tab's left padding */
+.tabs [role="tab"].has-grip {
+  padding-left: 8px;
+}
+
+.tabs .tab-grip {
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+  cursor: grab;
+}
+
+.tabs [role="tab"]:hover .tab-grip {
+  color: #475569;
+}
+
+.tabs [role="tab"][aria-selected="true"] .tab-grip {
+  color: #818cf8;
+}
+
+.tabs [role="tab"].dragging .tab-grip {
+  cursor: grabbing;
 }
 
 /* A tab being dragged to a new position */
@@ -308,6 +343,38 @@ button:disabled {
 .todo-item button:hover {
   background: #fee2e2;
   color: #dc2626;
+}
+
+/* Icon-only buttons (edit / rename / delete) */
+.todo-item .icon-button,
+.tab-actions .icon-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.todo-item .icon-button:hover:not(:disabled),
+.tab-actions .icon-button:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #334155;
+  transform: none;
+}
+
+.todo-item .icon-button.danger:hover:not(:disabled),
+.tab-actions .icon-button.danger:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.todo-item .icon-button:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
 }
 
 /* Drag-and-drop reordering */

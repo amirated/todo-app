@@ -17,6 +17,7 @@ import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modi
 import { CSS } from '@dnd-kit/utilities';
 
 import TabNameInput from './TabNameInput';
+import { PencilIcon, PlusIcon, TrashIcon } from './icons';
 
 export const tabId = (groupId) => `tab-${groupId}`;
 export const TAB_PANEL_ID = 'task-group-panel';
@@ -72,12 +73,20 @@ function SortableTab({
       aria-selected={isActive}
       aria-controls={TAB_PANEL_ID}
       tabIndex={isActive ? 0 : -1}
-      className={isDragging ? 'dragging' : undefined}
+      className={[!isDragDisabled && 'has-grip', isDragging && 'dragging']
+        .filter(Boolean)
+        .join(' ') || undefined}
       onClick={() => onSelect(group.id)}
       onDoubleClick={() => onStartRename(group.id)}
       onKeyDown={handleKeyDown}
     >
-      {group.name}
+      {/* Visual cue only: the whole tab is draggable, not just the grip */}
+      {!isDragDisabled && (
+        <span className="tab-grip" aria-hidden="true">
+          ⠿
+        </span>
+      )}
+      <span className="tab-name">{group.name}</span>
     </button>
   );
 }
@@ -233,8 +242,10 @@ function TaskGroupTabs({
             type="button"
             className="tab-add"
             onClick={() => setIsAdding(true)}
+            aria-label="New tab"
+            title="New tab"
           >
-            + New tab
+            <PlusIcon />
           </button>
         )}
       </div>
@@ -243,20 +254,22 @@ function TaskGroupTabs({
         <div className="tab-actions">
           <button
             type="button"
+            className="icon-button"
             onClick={() => setRenamingId(activeGroup.id)}
             aria-label={`Rename tab ${activeGroup.name}`}
+            title="Rename tab"
           >
-            Rename
+            <PencilIcon />
           </button>
           <button
             type="button"
-            className="danger"
+            className="icon-button danger"
             onClick={() => onRequestDelete(activeGroup)}
             disabled={groups.length === 1}
-            title={groups.length === 1 ? "You can't delete your only tab" : undefined}
+            title={groups.length === 1 ? "You can't delete your only tab" : 'Delete tab'}
             aria-label={`Delete tab ${activeGroup.name}`}
           >
-            Delete
+            <TrashIcon />
           </button>
         </div>
       )}

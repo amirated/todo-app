@@ -1,6 +1,8 @@
 
 import { useState } from 'react';
 
+import { PencilIcon, TrashIcon } from './icons';
+
 function TodoItem({
   todo,
   onToggle,
@@ -65,8 +67,24 @@ function TodoItem({
           <span className={todo.completed ? 'completed' : ''}>
             {todo.title}
           </span>
-          <button onClick={() => setIsEditing(true)}>Edit</button>
-          <button onClick={() => onDelete(todo.id)}>Delete</button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setIsEditing(true)}
+            aria-label={`Edit "${todo.title}"`}
+            title="Edit"
+          >
+            <PencilIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-button danger"
+            onClick={() => onDelete(todo.id)}
+            aria-label={`Delete "${todo.title}"`}
+            title="Delete"
+          >
+            <TrashIcon />
+          </button>
         </>
       )}
     </div>
