@@ -129,14 +129,41 @@ button:disabled {
   align-items: flex-end;
   gap: 4px;
   min-width: 0;
+  /* Overlap the bar's bottom border by 1px so the selected tab's underline
+     sits on it. Done here (not on each tab) so nothing sticks out below the
+     scroll area, which is what produced a vertical scrollbar. */
+  margin-bottom: -1px;
   overflow-x: auto;
+  overflow-y: hidden;
+  /* Thin scrollbar, invisible until the strip is hovered or focused */
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s;
+}
+
+.tabs:hover,
+.tabs:focus-within {
+  scrollbar-color: rgba(100, 116, 139, 0.25) transparent;
+}
+
+/* Older Safari, which doesn't support scrollbar-color */
+.tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tabs::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.tabs:hover::-webkit-scrollbar-thumb,
+.tabs:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.25);
 }
 
 .tabs [role="tab"],
 .tabs .tab-add {
   flex-shrink: 0;
-  margin-bottom: -1px;
   padding: 10px 14px;
   background: transparent;
   border-bottom: 2px solid transparent;
